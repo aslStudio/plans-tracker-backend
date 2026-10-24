@@ -1,0 +1,5 @@
+localResources:
+  specs:
+    - ../openapi.yaml
+workspace:
+  id: ''

@@ -1,0 +1,20 @@
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Set PROD_POSTGRES_PASSWORD for production}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  tasks:
+    environment:
+      DATABASE_URL: postgres://app@postgres:5432/tasks?sslmode=disable
+      DATABASE_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Set PROD_POSTGRES_PASSWORD for production}
+
+  habits:
+    environment:
+      DATABASE_URL: postgres://app@postgres:5432/habits?sslmode=disable
+      DATABASE_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Set PROD_POSTGRES_PASSWORD for production}
+
+volumes:
+  postgres_data:

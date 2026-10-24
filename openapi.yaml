@@ -1,0 +1,52 @@
+openapi: 3.1.0
+info:
+  title: Plans Tracker service health API
+  version: 0.1.0
+  description: Shared operational endpoints exposed by the tasks and habits services.
+servers:
+  - url: http://localhost:8081
+    description: Tasks service (local Docker Compose)
+  - url: http://localhost:8082
+    description: Habits service (local Docker Compose)
+paths:
+  /health/live:
+    get:
+      summary: Report that the HTTP process is running
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Process is running; dependencies are not checked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /health/ready:
+    get:
+      summary: Check PostgreSQL and Redis connectivity
+      operationId: getReadiness
+      responses:
+        '200':
+          description: Both dependencies responded within two seconds.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: At least one dependency is unavailable.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: dependency unavailable
+components:
+  schemas:
+    Health:
+      type: object
+      required: [service, status]
+      properties:
+        service:
+          type: string
+          enum: [tasks, habits]
+        status:
+          type: string
+          enum: [ok, ready]
