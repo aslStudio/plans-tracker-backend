@@ -1,14 +1,642 @@
 openapi: 3.1.0
 info:
-  title: Plans Tracker service health API
+  title: Plans Tracker API
   version: 0.1.0
-  description: Shared operational endpoints exposed by the tasks and habits services.
+  description: Task listing and operational endpoints for the tasks and habits services.
 servers:
   - url: http://localhost:8081
     description: Tasks service (local Docker Compose)
   - url: http://localhost:8082
     description: Habits service (local Docker Compose)
 paths:
+  /v1/tasks:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    get:
+      summary: List tasks for the configured development user
+      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      operationId: listTasks
+      servers:
+        - url: http://localhost:8081
+          description: Tasks service (local Docker Compose)
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          description: First day of the requested range, inclusive.
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          description: Last day of the requested range, inclusive. Must not precede start_date.
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Dated tasks with at least one scheduled day in the range, including recurring tasks anchored before the range. Each task appears once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+              example:
+                items:
+                  - id: 7fbcc6a7-ac8a-43b1-8ff8-1d65730a2be1
+                    title: Разобраться с pgx
+                    note: Прочитать, как работают Query, Scan и rows.Err
+                    description: null
+                    priority:
+                      id: priority-high
+                      label: Высокий
+                      color: accent-red
+                      sort_order: 2
+                      is_built_in: true
+                    group: null
+                    start_date: '2026-10-10'
+                    end_date: '2026-10-10'
+                    start_minute: null
+                    duration_minutes: 60
+                    repeat_rule: null
+                    status:
+                      id: status-todo
+                      label: To do
+                      color: null
+                      sort_order: 0
+                      is_completed: false
+                      is_built_in: true
+                    created_at: '2026-10-10T09:00:00Z'
+                    updated_at: '2026-10-10T09:00:00Z'
+        '400':
+          description: Missing or invalid date range.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Task list could not be read.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: Something went wrong while reading tasks list
+    post:
+      summary: Create a task for the configured development user
+      description: The user ID comes from DEV_USER_ID. If only one date is provided, it is copied to the other date field.
+      operationId: createTask
+      servers:
+        - url: http://localhost:8081
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateInput'
+      responses:
+        '201':
+          description: Task created. Location points to the new task.
+          headers:
+            Location:
+              description: Path of the created task.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListItem'
+        '400':
+          description: Invalid input or a status, priority, or group that does not belong to the user.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Task could not be created.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /v1/tasks/backlog:
+    get:
+      summary: List tasks without dates or repeat rules
+      operationId: listBacklogTasks
+      responses:
+        '200':
+          description: Undated tasks for the configured user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+  /v1/task-occurrences:
+    get:
+      summary: List scheduled task appearances in a date range
+      operationId: listTaskOccurrences
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema: {type: string, format: date}
+        - name: end_date
+          in: query
+          required: true
+          schema: {type: string, format: date}
+      responses:
+        '200':
+          description: One item per scheduled day, with that day's status and completion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOccurrenceListResponse'
+        '400': {description: Invalid date range or range longer than 366 days}
+  /v1/tasks/{id}/occurrences/{date}:
+    get:
+      summary: Get one scheduled appearance of a task
+      operationId: getTaskOccurrence
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/OccurrenceDate'
+      responses:
+        '200':
+          description: Scheduled appearance with its state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOccurrence'
+        '404': {description: Task or scheduled appearance not found}
+  /v1/tasks/{id}/occurrences/{date}/status:
+    put:
+      summary: Set the status of one recurring appearance
+      operationId: setTaskOccurrenceStatus
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/OccurrenceDate'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status_id]
+              properties:
+                status_id: {type: string, minLength: 1}
+      responses:
+        '200':
+          description: Updated appearance. Completed statuses also set completion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOccurrence'
+        '400': {description: Invalid input or status}
+        '404': {description: Task or scheduled appearance not found}
+        '409': {description: Task does not repeat}
+  /v1/tasks/{id}/occurrences/{date}/completion:
+    put:
+      summary: Set completion of one recurring appearance
+      operationId: setTaskOccurrenceCompletion
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/OccurrenceDate'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [completed]
+              properties:
+                completed: {type: boolean}
+      responses:
+        '200':
+          description: Updated appearance. Clearing completion resets a completed override to todo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskOccurrence'
+        '400': {description: Invalid input}
+        '404': {description: Task or scheduled appearance not found}
+        '409': {description: Task does not repeat}
+  /v1/tasks/{id}:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    get:
+      summary: Get one task for the configured development user
+      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      operationId: getTask
+      servers:
+        - url: http://localhost:8081
+          description: Tasks service (local Docker Compose)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The requested task with its status, priority, and group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListItem'
+        '404':
+          description: The task does not exist for the configured user.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: task not found
+        '500':
+          description: Task could not be read.
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: Something went wrong while reading task
+    patch:
+      summary: Change selected fields of one task
+      description: The user ID comes from DEV_USER_ID. Omitted fields remain unchanged; nullable fields can be cleared with null. Send both start_date and end_date together to change or clear the date range.
+      operationId: updateTask
+      servers:
+        - url: http://localhost:8081
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPatchInput'
+      responses:
+        '200':
+          description: Updated task with its status, priority, and group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListItem'
+        '400':
+          description: Invalid input or a status, priority, or group that does not belong to the user.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: The task does not exist for the configured user.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Task could not be updated.
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      summary: Delete one task
+      description: The user ID comes from DEV_USER_ID.
+      operationId: deleteTask
+      servers:
+        - url: http://localhost:8081
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Task deleted.
+        '404':
+          description: The task does not exist for the configured user.
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Task could not be deleted.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /v1/task-statuses:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    get:
+      summary: List task statuses for the configured development user
+      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      operationId: listTaskStatuses
+      servers:
+        - url: http://localhost:8081
+          description: Tasks service (local Docker Compose)
+      responses:
+        '200':
+          description: Statuses ordered by sort_order and id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatusListResponse'
+        '500':
+          description: Statuses could not be read.
+          content:
+            text/plain:
+              schema:
+                type: string
+    post:
+      summary: Create a custom task status
+      operationId: createTaskStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStatusCreateInput'
+      responses:
+        '201':
+          description: Custom status created before the built-in done status.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatus'
+        '400':
+          description: Invalid input.
+        '500':
+          description: Status could not be created.
+  /v1/task-statuses/{id}:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    get:
+      summary: Get one task status
+      operationId: getTaskStatus
+      responses:
+        '200':
+          description: Status belonging to the configured user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatus'
+        '404':
+          description: Status not found.
+        '500':
+          description: Status could not be read.
+    patch:
+      summary: Change a task status
+      description: The completion flag of a built-in status cannot be changed.
+      operationId: updateTaskStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStatusPatchInput'
+      responses:
+        '200':
+          description: Updated status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatus'
+        '400':
+          description: Invalid input.
+        '404':
+          description: Status not found.
+        '409':
+          description: Built-in status completion flag cannot be changed.
+        '500':
+          description: Status could not be updated.
+    delete:
+      summary: Delete a custom task status
+      description: Tasks and occurrence statuses using it switch to status-todo. Built-in statuses cannot be deleted.
+      operationId: deleteTaskStatus
+      responses:
+        '204':
+          description: Status deleted.
+        '404':
+          description: Status not found.
+        '409':
+          description: Built-in status cannot be deleted.
+        '500':
+          description: Status could not be deleted.
+  /v1/task-groups:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    get:
+      summary: List task groups for the configured development user
+      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      operationId: listTaskGroups
+      servers:
+        - url: http://localhost:8081
+          description: Tasks service (local Docker Compose)
+      responses:
+        '200':
+          description: Groups ordered by sort_order and id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskGroupListResponse'
+        '500':
+          description: Groups could not be read.
+          content:
+            text/plain:
+              schema:
+                type: string
+    post:
+      summary: Create a task group
+      operationId: createTaskGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskGroupCreateInput'
+      responses:
+        '201':
+          description: Group created.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskGroup'
+        '400':
+          description: Invalid input.
+        '500':
+          description: Group could not be created.
+  /v1/task-groups/{id}:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    get:
+      summary: Get one task group
+      operationId: getTaskGroup
+      responses:
+        '200':
+          description: Group belonging to the configured user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskGroup'
+        '404':
+          description: Group not found.
+        '500':
+          description: Group could not be read.
+    patch:
+      summary: Change a task group
+      operationId: updateTaskGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskGroupPatchInput'
+      responses:
+        '200':
+          description: Updated group.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskGroup'
+        '400':
+          description: Invalid input.
+        '404':
+          description: Group not found.
+        '500':
+          description: Group could not be updated.
+    delete:
+      summary: Delete a task group
+      description: Tasks using it keep existing data and lose their group association.
+      operationId: deleteTaskGroup
+      responses:
+        '204':
+          description: Group deleted.
+        '404':
+          description: Group not found.
+        '500':
+          description: Group could not be deleted.
+  /v1/task-priorities:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    get:
+      summary: List task priorities for the configured development user
+      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      operationId: listTaskPriorities
+      servers:
+        - url: http://localhost:8081
+          description: Tasks service (local Docker Compose)
+      responses:
+        '200':
+          description: Priorities ordered by sort_order and id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPriorityListResponse'
+        '500':
+          description: Priorities could not be read.
+          content:
+            text/plain:
+              schema:
+                type: string
+    post:
+      summary: Create a custom task priority
+      operationId: createTaskPriority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPriorityCreateInput'
+      responses:
+        '201':
+          description: Custom priority created.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPriority'
+        '400':
+          description: Invalid input.
+        '500':
+          description: Priority could not be created.
+  /v1/task-priorities/{id}:
+    servers:
+      - url: http://localhost:8081
+        description: Tasks service (local Docker Compose)
+    parameters:
+      - $ref: '#/components/parameters/ResourceID'
+    get:
+      summary: Get one task priority
+      operationId: getTaskPriority
+      responses:
+        '200':
+          description: Priority belonging to the configured user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPriority'
+        '404':
+          description: Priority not found.
+        '500':
+          description: Priority could not be read.
+    patch:
+      summary: Change a task priority
+      operationId: updateTaskPriority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPriorityPatchInput'
+      responses:
+        '200':
+          description: Updated priority.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPriority'
+        '400':
+          description: Invalid input.
+        '404':
+          description: Priority not found.
+        '500':
+          description: Priority could not be updated.
+    delete:
+      summary: Delete a custom task priority
+      description: Tasks using it keep existing data and lose their priority association. Built-in priorities cannot be deleted.
+      operationId: deleteTaskPriority
+      responses:
+        '204':
+          description: Priority deleted.
+        '404':
+          description: Priority not found.
+        '409':
+          description: Built-in priority cannot be deleted.
+        '500':
+          description: Priority could not be deleted.
   /health/live:
     get:
       summary: Report that the HTTP process is running
@@ -39,7 +667,326 @@ paths:
                 type: string
               example: dependency unavailable
 components:
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      schema: {type: string}
+    OccurrenceDate:
+      name: date
+      in: path
+      required: true
+      schema: {type: string, format: date}
+    ResourceID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
+    TaskOccurrence:
+      type: object
+      required: [task, occurrence_date, status, completed, completed_at]
+      properties:
+        task:
+          $ref: '#/components/schemas/TaskListItem'
+        occurrence_date: {type: string, format: date}
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        completed: {type: boolean}
+        completed_at: {type: [string, 'null'], format: date-time}
+    TaskOccurrenceListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskOccurrence'
+    TaskStatusCreateInput:
+      type: object
+      additionalProperties: false
+      required: [label]
+      properties:
+        label:
+          type: string
+          minLength: 1
+        color:
+          type: [string, 'null']
+        is_completed:
+          type: boolean
+          default: false
+    TaskStatusPatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        label:
+          type: string
+          minLength: 1
+        color:
+          type: [string, 'null']
+        is_completed:
+          type: boolean
+    TaskPriorityCreateInput:
+      type: object
+      additionalProperties: false
+      required: [label]
+      properties:
+        label:
+          type: string
+          minLength: 1
+        color:
+          type: [string, 'null']
+    TaskPriorityPatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        label:
+          type: string
+          minLength: 1
+        color:
+          type: [string, 'null']
+    TaskGroupCreateInput:
+      type: object
+      additionalProperties: false
+      required: [label, color]
+      properties:
+        label:
+          type: string
+          minLength: 1
+        color:
+          type: string
+          minLength: 1
+    TaskGroupPatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        label:
+          type: string
+          minLength: 1
+        color:
+          type: string
+          minLength: 1
+    TaskCreateInput:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        note:
+          type: string
+          default: ''
+        description:
+          type: [string, 'null']
+        status_id:
+          type: string
+          default: status-todo
+        priority_id:
+          type: [string, 'null']
+        group_id:
+          type: [string, 'null']
+        start_date:
+          type: [string, 'null']
+          format: date
+        end_date:
+          type: [string, 'null']
+          format: date
+        start_minute:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 1439
+        duration_minutes:
+          type: integer
+          minimum: 1
+          maximum: 32767
+          default: 60
+        repeat_rule:
+          oneOf:
+            - $ref: '#/components/schemas/TaskRepeatRule'
+            - type: 'null'
+    TaskPatchInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+        note:
+          type: string
+        description:
+          type: [string, 'null']
+        status_id:
+          type: string
+        priority_id:
+          type: [string, 'null']
+        group_id:
+          type: [string, 'null']
+        start_date:
+          type: [string, 'null']
+          format: date
+        end_date:
+          type: [string, 'null']
+          format: date
+        start_minute:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 1439
+        duration_minutes:
+          type: integer
+          minimum: 1
+          maximum: 32767
+        repeat_rule:
+          oneOf:
+            - $ref: '#/components/schemas/TaskRepeatRule'
+            - type: 'null'
+    TaskRepeatRule:
+      type: object
+      description: Daily has no extra fields; weekly requires daysOfWeek (0 Sunday through 6 Saturday); monthly requires dayOfMonth; custom requires everyNDays. Other fields are rejected. Missing days of a month are skipped.
+      additionalProperties: false
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [daily, weekly, monthly, custom]
+        daysOfWeek:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        dayOfMonth:
+          type: integer
+          minimum: 1
+          maximum: 31
+        everyNDays:
+          type: integer
+          minimum: 1
+    TaskListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskListItem'
+    TaskStatusListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskStatus'
+    TaskGroupListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskGroup'
+    TaskPriorityListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskPriority'
+    TaskListItem:
+      type: object
+      required: [id, title, note, description, priority, group, start_date, end_date, start_minute, duration_minutes, repeat_rule, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        note:
+          type: string
+        description:
+          type: [string, 'null']
+        priority:
+          oneOf:
+            - $ref: '#/components/schemas/TaskPriority'
+            - type: 'null'
+        group:
+          oneOf:
+            - $ref: '#/components/schemas/TaskGroup'
+            - type: 'null'
+        start_date:
+          type: [string, 'null']
+          format: date
+        end_date:
+          type: [string, 'null']
+          format: date
+        start_minute:
+          type: [integer, 'null']
+          minimum: 0
+          maximum: 1439
+        duration_minutes:
+          type: integer
+          minimum: 1
+        repeat_rule:
+          oneOf:
+            - $ref: '#/components/schemas/TaskRepeatRule'
+            - type: 'null'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TaskPriority:
+      type: object
+      required: [id, label, color, sort_order, is_built_in]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        color:
+          type: [string, 'null']
+        sort_order:
+          type: integer
+        is_built_in:
+          type: boolean
+    TaskGroup:
+      type: object
+      required: [id, label, color, sort_order]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        color:
+          type: string
+        sort_order:
+          type: integer
+    TaskStatus:
+      type: object
+      required: [id, label, color, sort_order, is_completed, is_built_in]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        color:
+          type: [string, 'null']
+        sort_order:
+          type: integer
+        is_completed:
+          type: boolean
+        is_built_in:
+          type: boolean
     Health:
       type: object
       required: [service, status]

@@ -15,7 +15,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func Run(name string) error {
+type RegisterRoutes func(*http.ServeMux, *pgxpool.Pool)
+
+func Run(name string, register RegisterRoutes) error {
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -40,11 +42,16 @@ func Run(name string) error {
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr, Password: cfg.RedisPass})
 	defer redisClient.Close()
 
+	mux := newHandler(name, pool.Ping, func(ctx context.Context) error {
+		return redisClient.Ping(ctx).Err()
+	})
+	if register != nil {
+		register(mux, pool)
+	}
+
 	server := &http.Server{
-		Addr: ":" + cfg.Port,
-		Handler: newHandler(name, pool.Ping, func(ctx context.Context) error {
-			return redisClient.Ping(ctx).Err()
-		}),
+		Addr:              ":" + cfg.Port,
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
@@ -68,7 +75,7 @@ func Run(name string) error {
 	return nil
 }
 
-func newHandler(name string, postgresPing, redisPing func(context.Context) error) http.Handler {
+func newHandler(name string, postgresPing, redisPing func(context.Context) error) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health/live", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

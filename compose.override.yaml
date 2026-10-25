@@ -1,0 +1,8 @@
+services:
+  postgres:
+    volumes:
+      - ./docker/postgres/seed.dev.sql:/docker-entrypoint-initdb.d/02-seed.dev.sql:ro
+
+  tasks:
+    environment:
+      DEV_USER_ID: 8dc53fe1-0f08-4bd0-a3ed-6a5541859490

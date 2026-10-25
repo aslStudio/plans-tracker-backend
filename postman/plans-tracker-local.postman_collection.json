@@ -1,0 +1,849 @@
+{
+  "info": {
+    "name": "Plans Tracker — локальная проверка API",
+    "_postman_id": "a54c8a23-64be-4dcc-92f2-772301b16b9d",
+    "description": "Импортируйте коллекцию и запустите целиком после docker compose up --build -d. Запросы создают три справочника и связанную с ними задачу, затем удаляют справочники и проверяют переназначение связей. baseUrl указывает на локальный tasks сервис.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 Health",
+      "item": [
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/health/ready"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('service ready', function () { pm.expect(pm.response.json().status).to.eql('ready'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Statuses",
+      "item": [
+        {
+          "name": "List statuses",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/task-statuses"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('items is an array', function () { pm.expect(pm.response.json().items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create status",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/v1/task-statuses",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Postman status\",\n  \"color\": \"accent-blue\",\n  \"is_completed\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "const result = pm.response.json();",
+                  "pm.test('response contains id', function () { pm.expect(result.id).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('statusId', result.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get status",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/task-statuses/{{statusId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('requested id matches', function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('statusId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch status",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/v1/task-statuses/{{statusId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Postman status updated\",\n  \"color\": null,\n  \"is_completed\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('status updated', function () { const x=pm.response.json(); pm.expect(x.label).to.eql('Postman status updated'); pm.expect(x.color).to.eql(null); pm.expect(x.is_completed).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Built-in status is protected",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/task-statuses/status-todo"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Priorities",
+      "item": [
+        {
+          "name": "List priorities",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/task-priorities"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('items is an array', function () { pm.expect(pm.response.json().items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create priority",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/v1/task-priorities",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Postman priority\",\n  \"color\": \"accent-red\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "const result = pm.response.json();",
+                  "pm.test('response contains id', function () { pm.expect(result.id).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('priorityId', result.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get priority",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/task-priorities/{{priorityId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('requested id matches', function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('priorityId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch priority",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/v1/task-priorities/{{priorityId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Postman priority updated\",\n  \"color\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('priority updated', function () { const x=pm.response.json(); pm.expect(x.label).to.eql('Postman priority updated'); pm.expect(x.color).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Built-in priority is protected",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/task-priorities/priority-high"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', function () { pm.response.to.have.status(409); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Groups",
+      "item": [
+        {
+          "name": "List groups",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/task-groups"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('items is an array', function () { pm.expect(pm.response.json().items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create group",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/v1/task-groups",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Postman group\",\n  \"color\": \"accent-blue\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "const result = pm.response.json();",
+                  "pm.test('response contains id', function () { pm.expect(result.id).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('groupId', result.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get group",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/task-groups/{{groupId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('requested id matches', function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('groupId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch group",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/v1/task-groups/{{groupId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Postman group updated\",\n  \"color\": \"accent-red\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('group updated', function () { const x=pm.response.json(); pm.expect(x.label).to.eql('Postman group updated'); pm.expect(x.color).to.eql('accent-red'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Tasks",
+      "item": [
+        {
+          "name": "List tasks",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/tasks?start_date={{startDate}}&end_date={{endDate}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('items is an array', function () { pm.expect(pm.response.json().items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create task",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/v1/tasks",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman task\",\n  \"start_date\": \"{{startDate}}\",\n  \"status_id\": \"{{statusId}}\",\n  \"priority_id\": \"{{priorityId}}\",\n  \"group_id\": \"{{groupId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "const result = pm.response.json();",
+                  "pm.test('response contains id', function () { pm.expect(result.id).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('taskId', result.id);",
+                  "pm.test('task has created relations', function () { const x=pm.response.json(); pm.expect(x.status.id).to.eql(pm.collectionVariables.get('statusId')); pm.expect(x.priority.id).to.eql(pm.collectionVariables.get('priorityId')); pm.expect(x.group.id).to.eql(pm.collectionVariables.get('groupId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get task",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/tasks/{{taskId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('requested id matches', function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('taskId')); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch task",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/v1/tasks/{{taskId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman task updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('task updated', function () { const x=pm.response.json(); pm.expect(x.title).to.eql('Postman task updated'); pm.expect(x.priority.id).to.eql(pm.collectionVariables.get('priorityId')); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Recurrences and backlog",
+      "item": [
+        {
+          "name": "List backlog",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/tasks/backlog"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('items is an array', function () { pm.expect(pm.response.json().items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create daily task",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/v1/tasks",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\": \"Postman recurring task\", \"start_date\": \"{{startDate}}\", \"repeat_rule\": {\"type\": \"daily\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('recurringTaskId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List recurring appearances",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/task-occurrences?start_date={{startDate}}&end_date={{endDate}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('recurring task appears on multiple days', function () { pm.expect(pm.response.json().items.filter(x => x.task.id === pm.collectionVariables.get('recurringTaskId')).length).to.be.above(1); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete one day",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/v1/tasks/{{recurringTaskId}}/occurrences/{{startDate}}/status",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"status_id\": \"status-done\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('day is complete', function () { pm.expect(pm.response.json().completed).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear completion",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/v1/tasks/{{recurringTaskId}}/occurrences/{{startDate}}/completion",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"completed\": false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('day is open', function () { const x = pm.response.json(); pm.expect(x.completed).to.eql(false); pm.expect(x.status.id).to.eql('status-todo'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get one appearance",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/tasks/{{recurringTaskId}}/occurrences/{{startDate}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete daily task",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/tasks/{{recurringTaskId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Cleanup and reference checks",
+      "item": [
+        {
+          "name": "Delete status",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/task-statuses/{{statusId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete priority",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/task-priorities/{{priorityId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete group",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/task-groups/{{groupId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get task after catalog cleanup",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/tasks/{{taskId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('deleted relations were replaced', function () { const x=pm.response.json(); pm.expect(x.status.id).to.eql('status-todo'); pm.expect(x.priority).to.eql(null); pm.expect(x.group).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete task",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/tasks/{{taskId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const now = new Date();",
+          "const start = new Date(now); start.setUTCDate(start.getUTCDate() - 2);",
+          "const end = new Date(now); end.setUTCDate(end.getUTCDate() + 7);",
+          "pm.collectionVariables.set('startDate', start.toISOString().slice(0, 10));",
+          "pm.collectionVariables.set('endDate', end.toISOString().slice(0, 10));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "statusId",
+      "value": ""
+    },
+    {
+      "key": "priorityId",
+      "value": ""
+    },
+    {
+      "key": "groupId",
+      "value": ""
+    },
+    {
+      "key": "taskId",
+      "value": ""
+    },
+    {
+      "key": "startDate",
+      "value": ""
+    },
+    {
+      "key": "endDate",
+      "value": ""
+    },
+    {
+      "key": "recurringTaskId",
+      "value": ""
+    }
+  ]
+}

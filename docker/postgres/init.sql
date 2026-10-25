@@ -40,6 +40,26 @@ INSERT INTO schema_migrations (version) VALUES ('001_initial');
 COMMIT;
 \endif
 
+SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM schema_migrations WHERE version = '002_drop_group_color_check'
+) THEN 'false' ELSE 'true' END AS apply_tasks_002 \gset
+\if :apply_tasks_002
+BEGIN;
+\i /db-migrations/tasks/002_drop_group_color_check.sql
+INSERT INTO schema_migrations (version) VALUES ('002_drop_group_color_check');
+COMMIT;
+\endif
+
+SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM schema_migrations WHERE version = '003_occurrence_status_date_index'
+) THEN 'false' ELSE 'true' END AS apply_tasks_003 \gset
+\if :apply_tasks_003
+BEGIN;
+\i /db-migrations/tasks/003_occurrence_status_date_index.sql
+INSERT INTO schema_migrations (version) VALUES ('003_occurrence_status_date_index');
+COMMIT;
+\endif
+
 \connect habits
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version text PRIMARY KEY,
