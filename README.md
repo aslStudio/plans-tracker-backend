@@ -54,6 +54,8 @@ docker compose exec -T postgres psql -U app -d postgres -f /docker-entrypoint-in
 - `tasks`: статусы, приоритеты, группы, задачи, статусы повторений, отметки выполнения, события календаря;
 - `habits`: категории, привычки, отметки выполнения.
 
+В базе `habits` правило повторения обязательно: `daily`, `weekly` с непустым списком уникальных дней недели от 0 (воскресенье) до 6, `monthly` с днём от 1 до 31 или `custom` с положительным интервалом дней. Категория необязательна. При её удалении привычки сохраняются, `category_id` становится `NULL`, а `updated_at` обновляется; удаление привычки удаляет её отметки выполнения. `updated_at` обновляется и при любом другом изменении привычки. Повторения вычисляются приложением от даты создания привычки, а отметка хранит отдельно календарный день `occurrence_date` и фактическое время `completed_at`.
+
 У каждого пользователя свои статусы и приоритеты. При создании первой задачи базовые значения появляются автоматически. Чтобы получить их до первой задачи, вызовите в базе `tasks` функцию `SELECT ensure_task_defaults('<user-uuid>');`. Ссылки `user_id` из баз `tasks` и `habits` на `accounts.users` не имеют внешнего ключа, поскольку базы раздельны; создание и удаление связанных данных должен координировать бекенд. Ссылки событий календаря на привычки также проверяются бекендом. Таблица `users` не задаёт способ входа и не хранит пароли: авторизация пока не определена. Значение `notification_settings.enabled` отражает пользовательскую настройку, а фактическое разрешение ОС остаётся на устройстве.
 
 ## Локальный запуск Go
@@ -62,7 +64,7 @@ docker compose exec -T postgres psql -U app -d postgres -f /docker-entrypoint-in
 
 ```sh
 DATABASE_URL='postgres://app:localdev@localhost:5433/tasks?sslmode=disable' REDIS_ADDR='localhost:6380' DEV_USER_ID='8dc53fe1-0f08-4bd0-a3ed-6a5541859490' PORT=8081 go run ./cmd/tasks
-DATABASE_URL='postgres://app:localdev@localhost:5433/habits?sslmode=disable' REDIS_ADDR='localhost:6380' PORT=8082 go run ./cmd/habits
+DATABASE_URL='postgres://app:localdev@localhost:5433/habits?sslmode=disable' REDIS_ADDR='localhost:6380' DEV_USER_ID='8dc53fe1-0f08-4bd0-a3ed-6a5541859490' PORT=8082 go run ./cmd/habits
 ```
 
 Обязательны `DATABASE_URL` и `REDIS_ADDR`; опциональны `DATABASE_PASSWORD`, `REDIS_PASSWORD` и `PORT` (по умолчанию `8080`). `GET /health/live` проверяет процесс, `GET /health/ready` проверяет PostgreSQL и Redis. Контракт описан в `openapi.yaml`.
@@ -73,7 +75,7 @@ DATABASE_URL='postgres://app:localdev@localhost:5433/habits?sslmode=disable' RED
 
 - `internal/tasks/task.go` — начальная доменная модель. Дополняйте её по мере реализации функций.
 - `internal/tasks/service.go` — интерфейс хранилища и место для правил работы с задачами.
-- `internal/tasks/postgres/repository.go` — место для SQL-запросов к базе `tasks`.
+- `internal/tasks/postgres/repository.go` — чтение и запись задач и справочников; запросы для отдельных появлений задачи лежат в `occurrence.go`.
 - `internal/tasks/httpapi/handler.go` — REST-маршруты и обработчики.
 - `internal/tasks/httpapi/dto.go` — место для структур JSON-запросов и ответов.
 
@@ -88,6 +90,14 @@ DATABASE_URL='postgres://app:localdev@localhost:5433/habits?sslmode=disable' RED
 `POST /v1/tasks` создаёт задачу и возвращает `201` с заголовком `Location`. Обязателен `title`; по умолчанию используются `status-todo` и 60 минут. Если передана только одна из дат, она копируется в другую. `PATCH /v1/tasks/{id}` изменяет только переданные поля; чтобы изменить или очистить диапазон дат, передайте обе даты. При изменении дат или правила повторения статусы и отметки отдельных появлений удаляются, потому что прежнее расписание больше не действует. `DELETE /v1/tasks/{id}` возвращает `204`. Статус, приоритет и группа в запросах задаются через `status_id`, `priority_id` и `group_id`; они должны принадлежать текущему пользователю. Даты в запросах и ответах имеют формат `YYYY-MM-DD`.
 
 `GET /v1/task-statuses`, `GET /v1/task-groups` и `GET /v1/task-priorities` возвращают `{"items":[...]}` со справочниками пользователя. Записи отсортированы по `sort_order`, затем по `id`.
+
+Сервис `habits` работает на порту `8082` для `DEV_USER_ID`. `GET /v1/habits` возвращает `{"items":[...]}` со всеми привычками пользователя, отсортированными по времени создания (новые первыми), затем по ID. Пустой список возвращается как `{"items":[]}`. В ответе есть `category_id`, обязательное `repeat_rule`, время начала и длительность; отметки выполнения загружаются отдельно.
+
+Для привычек доступны `POST /v1/habits`, `GET /v1/habits/{id}`, `PATCH /v1/habits/{id}` и `DELETE /v1/habits/{id}`. Создание требует `title` и `repeat_rule`; по умолчанию заметка и описание пустые, длительность — 60 минут, категория и время начала отсутствуют. PATCH меняет только переданные поля; `null` очищает `category_id` или `start_minute`. Удаление привычки удаляет её отметки. Чужая или отсутствующая привычка возвращает `404`.
+
+Категории доступны через `GET` и `POST /v1/habit-categories`, а также `GET`, `PATCH` и `DELETE /v1/habit-categories/{id}`. При создании нужен `label`; порядок назначается автоматически. Удаление категории оставляет связанные привычки без категории.
+
+`GET /v1/habit-completions` возвращает отметки всех привычек пользователя одной выборкой. Можно передать `habit_id` и пару `start_date`/`end_date` в формате `YYYY-MM-DD`; диапазон включает обе даты и ограничен 366 днями. Без дат возвращается полная история для расчёта стриков в приложении. `PUT /v1/habits/{id}/completions/{date}` с `{"completed":true}` создаёт или обновляет отметку, с `{"completed":false}` снимает её; ответ содержит текущее состояние и объект отметки либо `null`. Дата отметки не обязана совпадать с расписанием, как и в локальном репозитории приложения. Недельная полоска, статистика и стрики по-прежнему вычисляются в приложении из привычек и отметок.
 
 Для каждого справочника доступны также `POST /v1/{resource}`, `GET /v1/{resource}/{id}`, `PATCH /v1/{resource}/{id}` и `DELETE /v1/{resource}/{id}`, где `resource` — `task-statuses`, `task-groups` или `task-priorities`. При создании нужны `label`, а для группы ещё `color`. Изменять можно название и цвет, у пользовательского статуса также `is_completed`; порядок присваивается автоматически. Встроенные статусы и приоритеты можно переименовать, но удаление возвращает `409`. Удаление пользовательского статуса переводит связанные задачи и статусы повторений в `status-todo`; удаление приоритета или группы очищает связь у задач.
 
@@ -116,6 +126,15 @@ docker compose logs --tail=100 postgres tasks redis
 
 `go test ./...` запускает HTTP-тесты с подставным репозиторием. Они проверяют чтение и запись задач, вложенные статус, приоритет и группу, списки справочников, пустые ответы, порядок элементов, передачу пользователя и диапазона дат, валидацию и ответы при ошибках.
 
+Для `habits` HTTP-тесты проверяют список, создание, частичное изменение, отметки, диапазон дат, валидацию и ошибки. SQL-тесты запускаются отдельно с `HABITS_TEST_DATABASE_URL`; они проверяют CRUD, порядок, связи, отметки и изоляцию пользователей. URL должен указывать только на отдельную базу `habits_test`. После запуска PostgreSQL подготовьте её так:
+
+```sh
+docker compose exec -T postgres createdb -U app habits_test
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U app -d habits_test < docker/postgres/migrations/habits/001_initial.sql
+docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U app -d habits_test < docker/postgres/migrations/habits/002_category_delete_and_repeat_rules.sql
+HABITS_TEST_DATABASE_URL='postgres://app:localdev@localhost:5433/habits_test?sslmode=disable' go test ./internal/habits/postgres -v
+```
+
 Интеграционный тест SQL работает только с отдельной базой `tasks_test`. Создайте её и примените схему один раз после запуска PostgreSQL:
 
 ```sh
@@ -138,8 +157,9 @@ TEST_DATABASE_URL='postgres://app:localdev@localhost:5433/tasks_test?sslmode=dis
 
 - `cmd/tasks`, `cmd/habits` — отдельные исполняемые сервисы.
 - `internal/platform` — конфигурация, подключение зависимостей и HTTP-сервер.
+- `internal/habits` — модель, правила ввода, PostgreSQL-репозиторий и HTTP-обработчики привычек.
 - `docker/postgres/init.sql` — создание баз и применение SQL-миграций.
 - `docker/postgres/migrations` — версии схем для каждой базы.
 - `openapi.yaml` — текущий HTTP-контракт.
 
-Мобильное приложение сейчас хранит данные локально и пока не подключено к этому API. Ручки привычек ещё не реализованы.
+Мобильное приложение сейчас хранит данные локально и пока не подключено к этому API.

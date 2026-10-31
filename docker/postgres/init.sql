@@ -74,3 +74,13 @@ BEGIN;
 INSERT INTO schema_migrations (version) VALUES ('001_initial');
 COMMIT;
 \endif
+
+SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM schema_migrations WHERE version = '002_category_delete_and_repeat_rules'
+) THEN 'false' ELSE 'true' END AS apply_habits_002 \gset
+\if :apply_habits_002
+BEGIN;
+\i /db-migrations/habits/002_category_delete_and_repeat_rules.sql
+INSERT INTO schema_migrations (version) VALUES ('002_category_delete_and_repeat_rules');
+COMMIT;
+\endif

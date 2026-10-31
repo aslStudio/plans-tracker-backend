@@ -795,6 +795,384 @@
           ]
         }
       ]
+    },
+    {
+      "name": "08 Habits",
+      "item": [
+        {
+          "name": "Create habit category",
+          "request": {
+            "method": "POST",
+            "url": "{{habitsBaseUrl}}/v1/habit-categories",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\":\"Postman health\",\"color\":\"accent-green\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('category has id', function () { pm.expect(pm.response.json().id).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('habitCategoryId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List habit categories",
+          "request": {
+            "method": "GET",
+            "url": "{{habitsBaseUrl}}/v1/habit-categories"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('created category is listed', function () { pm.expect(pm.response.json().items.some(x => x.id === pm.collectionVariables.get('habitCategoryId'))).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get habit category",
+          "request": {
+            "method": "GET",
+            "url": "{{habitsBaseUrl}}/v1/habit-categories/{{habitCategoryId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch habit category",
+          "request": {
+            "method": "PATCH",
+            "url": "{{habitsBaseUrl}}/v1/habit-categories/{{habitCategoryId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"label\":\"Postman wellness\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('category was renamed', function () { pm.expect(pm.response.json().label).to.eql('Postman wellness'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create habit",
+          "request": {
+            "method": "POST",
+            "url": "{{habitsBaseUrl}}/v1/habits",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"Postman walk\",\"repeat_rule\":{\"type\":\"weekly\",\"daysOfWeek\":[1,3,5]},\"category_id\":\"{{habitCategoryId}}\",\"duration_minutes\":30}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 201', function () { pm.response.to.have.status(201); });",
+                  "pm.test('habit has id', function () { pm.expect(pm.response.json().id).to.be.a('string').and.not.empty; });",
+                  "pm.collectionVariables.set('habitId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List habits",
+          "request": {
+            "method": "GET",
+            "url": "{{habitsBaseUrl}}/v1/habits"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('created habit is listed', function () { pm.expect(pm.response.json().items.some(x => x.id === pm.collectionVariables.get('habitId'))).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get habit",
+          "request": {
+            "method": "GET",
+            "url": "{{habitsBaseUrl}}/v1/habits/{{habitId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patch habit",
+          "request": {
+            "method": "PATCH",
+            "url": "{{habitsBaseUrl}}/v1/habits/{{habitId}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"note\":\"Postman note\",\"start_minute\":600}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('habit patch applied', function () { const x = pm.response.json(); pm.expect(x.note).to.eql('Postman note'); pm.expect(x.start_minute).to.eql(600); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set habit completion",
+          "request": {
+            "method": "PUT",
+            "url": "{{habitsBaseUrl}}/v1/habits/{{habitId}}/completions/{{startDate}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"completed\":true}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('completion created', function () { const x = pm.response.json(); pm.expect(x.completed).to.eql(true); pm.expect(x.completion.habit_id).to.eql(pm.collectionVariables.get('habitId')); });",
+                  "pm.collectionVariables.set('habitCompletionId', pm.response.json().completion.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List habit completions",
+          "request": {
+            "method": "GET",
+            "url": "{{habitsBaseUrl}}/v1/habit-completions?start_date={{startDate}}&end_date={{endDate}}&habit_id={{habitId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('completion is listed', function () { pm.expect(pm.response.json().items.some(x => x.id === pm.collectionVariables.get('habitCompletionId'))).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear habit completion",
+          "request": {
+            "method": "PUT",
+            "url": "{{habitsBaseUrl}}/v1/habits/{{habitId}}/completions/{{startDate}}",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"completed\":false}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('completion cleared', function () { const x = pm.response.json(); pm.expect(x.completed).to.eql(false); pm.expect(x.completion).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete habit category",
+          "request": {
+            "method": "DELETE",
+            "url": "{{habitsBaseUrl}}/v1/habit-categories/{{habitCategoryId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get uncategorized habit",
+          "request": {
+            "method": "GET",
+            "url": "{{habitsBaseUrl}}/v1/habits/{{habitId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "pm.test('category reference cleared', function () { pm.expect(pm.response.json().category_id).to.eql(null); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete habit",
+          "request": {
+            "method": "DELETE",
+            "url": "{{habitsBaseUrl}}/v1/habits/{{habitId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 204', function () { pm.response.to.have.status(204); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get deleted habit",
+          "request": {
+            "method": "GET",
+            "url": "{{habitsBaseUrl}}/v1/habits/{{habitId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "event": [
@@ -816,6 +1194,10 @@
     {
       "key": "baseUrl",
       "value": "http://localhost:8081"
+    },
+    {
+      "key": "habitsBaseUrl",
+      "value": "http://localhost:8082"
     },
     {
       "key": "statusId",
@@ -843,6 +1225,18 @@
     },
     {
       "key": "recurringTaskId",
+      "value": ""
+    },
+    {
+      "key": "habitCategoryId",
+      "value": ""
+    },
+    {
+      "key": "habitId",
+      "value": ""
+    },
+    {
+      "key": "habitCompletionId",
       "value": ""
     }
   ]
