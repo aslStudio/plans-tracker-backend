@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"plans-tracker-backend/internal/auth"
 )
 
 type RegisterRoutes func(*http.ServeMux, *pgxpool.Pool)
@@ -49,9 +50,18 @@ func Run(name string, register RegisterRoutes) error {
 		register(mux, pool)
 	}
 
+	var handler http.Handler = mux
+	if name != "accounts" {
+		handler = (auth.Middleware{
+			IntrospectURL:  os.Getenv("AUTH_INTROSPECT_URL"),
+			InternalSecret: os.Getenv("AUTH_INTERNAL_SECRET"),
+			DevUserID:      os.Getenv("DEV_USER_ID"),
+			AllowDevUser:   os.Getenv("AUTH_ALLOW_DEV_USER") == "true",
+		}).Wrap(mux)
+	}
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}

@@ -1,0 +1,13 @@
+$kind: http-request
+name: Reject invalid task access token
+method: GET
+url: '{{tasksUrl}}/v1/tasks/backlog'
+order: 5000
+headers:
+  - key: Authorization
+    value: Bearer invalid
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('invalid service token rejected', () => pm.response.to.have.status(401));

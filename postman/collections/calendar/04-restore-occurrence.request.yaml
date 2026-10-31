@@ -1,0 +1,13 @@
+$kind: http-request
+name: Restore occurrence
+method: DELETE
+url: '{{baseUrl}}/v1/calendar-events/{{eventId}}/excluded-dates/{{eventDate}}'
+order: 4500
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('restored', () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().excluded_dates).to.not.include(pm.collectionVariables.get('eventDate'));
+      });

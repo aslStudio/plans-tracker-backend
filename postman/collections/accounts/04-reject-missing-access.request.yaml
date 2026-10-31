@@ -1,0 +1,10 @@
+$kind: http-request
+name: Reject missing access token
+method: GET
+url: '{{accountsUrl}}/v1/auth/me'
+order: 4000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('missing access token rejected', () => pm.response.to.have.status(401));

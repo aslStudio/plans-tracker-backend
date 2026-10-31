@@ -1,0 +1,17 @@
+$kind: http-request
+name: Reject unsigned Apple notification
+method: POST
+url: '{{accountsUrl}}/v1/auth/apple/notifications'
+order: 6000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {"payload":"invalid"}
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('unsigned notification rejected', () => pm.response.to.have.status(401));

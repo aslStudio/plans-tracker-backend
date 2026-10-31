@@ -1,0 +1,13 @@
+$kind: http-request
+name: List events
+method: GET
+url: '{{baseUrl}}/v1/calendar-events?start_date={{eventDate}}&end_date={{eventDate}}'
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('listed', () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().items.some(e => e.id === pm.collectionVariables.get('eventId'))).to.eql(true);
+      });

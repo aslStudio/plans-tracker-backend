@@ -1,0 +1,10 @@
+$kind: http-request
+name: Delete event
+method: DELETE
+url: '{{baseUrl}}/v1/calendar-events/{{eventId}}'
+order: 6000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('deleted', () => pm.response.to.have.status(204));

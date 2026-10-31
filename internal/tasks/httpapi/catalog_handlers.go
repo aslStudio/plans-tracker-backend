@@ -9,7 +9,7 @@ import (
 )
 
 func (h *Handler) getStatus(w http.ResponseWriter, r *http.Request) {
-	item, err := h.service.StatusByID(r.Context(), h.userID, r.PathValue("id"))
+	item, err := h.service.StatusByID(r.Context(), h.userIDFor(r), r.PathValue("id"))
 	if writeCatalogError(w, err, "status", "reading") {
 		return
 	}
@@ -27,7 +27,7 @@ func (h *Handler) createStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.CreateStatus(r.Context(), h.userID, input)
+	item, err := h.service.CreateStatus(r.Context(), h.userIDFor(r), input)
 	if writeCatalogError(w, err, "status", "creating") {
 		return
 	}
@@ -41,7 +41,7 @@ func (h *Handler) patchStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.PatchStatus(r.Context(), h.userID, r.PathValue("id"), request.toPatch())
+	item, err := h.service.PatchStatus(r.Context(), h.userIDFor(r), r.PathValue("id"), request.toPatch())
 	if writeCatalogError(w, err, "status", "updating") {
 		return
 	}
@@ -49,14 +49,14 @@ func (h *Handler) patchStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteStatus(w http.ResponseWriter, r *http.Request) {
-	if writeCatalogError(w, h.service.DeleteStatus(r.Context(), h.userID, r.PathValue("id")), "status", "deleting") {
+	if writeCatalogError(w, h.service.DeleteStatus(r.Context(), h.userIDFor(r), r.PathValue("id")), "status", "deleting") {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) getPriority(w http.ResponseWriter, r *http.Request) {
-	item, err := h.service.PriorityByID(r.Context(), h.userID, r.PathValue("id"))
+	item, err := h.service.PriorityByID(r.Context(), h.userIDFor(r), r.PathValue("id"))
 	if writeCatalogError(w, err, "priority", "reading") {
 		return
 	}
@@ -74,7 +74,7 @@ func (h *Handler) createPriority(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.CreatePriority(r.Context(), h.userID, input)
+	item, err := h.service.CreatePriority(r.Context(), h.userIDFor(r), input)
 	if writeCatalogError(w, err, "priority", "creating") {
 		return
 	}
@@ -88,7 +88,7 @@ func (h *Handler) patchPriority(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.PatchPriority(r.Context(), h.userID, r.PathValue("id"), request.toPatch())
+	item, err := h.service.PatchPriority(r.Context(), h.userIDFor(r), r.PathValue("id"), request.toPatch())
 	if writeCatalogError(w, err, "priority", "updating") {
 		return
 	}
@@ -96,14 +96,14 @@ func (h *Handler) patchPriority(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deletePriority(w http.ResponseWriter, r *http.Request) {
-	if writeCatalogError(w, h.service.DeletePriority(r.Context(), h.userID, r.PathValue("id")), "priority", "deleting") {
+	if writeCatalogError(w, h.service.DeletePriority(r.Context(), h.userIDFor(r), r.PathValue("id")), "priority", "deleting") {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) getGroup(w http.ResponseWriter, r *http.Request) {
-	item, err := h.service.GroupByID(r.Context(), h.userID, r.PathValue("id"))
+	item, err := h.service.GroupByID(r.Context(), h.userIDFor(r), r.PathValue("id"))
 	if writeCatalogError(w, err, "group", "reading") {
 		return
 	}
@@ -121,7 +121,7 @@ func (h *Handler) createGroup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.CreateGroup(r.Context(), h.userID, input)
+	item, err := h.service.CreateGroup(r.Context(), h.userIDFor(r), input)
 	if writeCatalogError(w, err, "group", "creating") {
 		return
 	}
@@ -135,7 +135,7 @@ func (h *Handler) patchGroup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.PatchGroup(r.Context(), h.userID, r.PathValue("id"), request.toPatch())
+	item, err := h.service.PatchGroup(r.Context(), h.userIDFor(r), r.PathValue("id"), request.toPatch())
 	if writeCatalogError(w, err, "group", "updating") {
 		return
 	}
@@ -143,7 +143,7 @@ func (h *Handler) patchGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteGroup(w http.ResponseWriter, r *http.Request) {
-	if writeCatalogError(w, h.service.DeleteGroup(r.Context(), h.userID, r.PathValue("id")), "group", "deleting") {
+	if writeCatalogError(w, h.service.DeleteGroup(r.Context(), h.userIDFor(r), r.PathValue("id")), "group", "deleting") {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

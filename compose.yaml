@@ -28,6 +28,40 @@ services:
       timeout: 3s
       retries: 10
 
+  accounts:
+    build:
+      context: .
+      args:
+        SERVICE: accounts
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-localdev}@postgres:5432/accounts?sslmode=disable
+      TASKS_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-localdev}@postgres:5432/tasks?sslmode=disable
+      HABITS_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-localdev}@postgres:5432/habits?sslmode=disable
+      CALENDAR_DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-localdev}@postgres:5432/calendar?sslmode=disable
+      REDIS_ADDR: redis:6379
+      APPLE_CLIENT_ID: app.planstracker
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY_FILE: /run/secrets/apple_key
+      APPLE_TOKEN_ENCRYPTION_KEY: ${APPLE_TOKEN_ENCRYPTION_KEY:-}
+      AUTH_INTERNAL_SECRET: ${AUTH_INTERNAL_SECRET:-}
+    volumes:
+      - ${APPLE_PRIVATE_KEY_PATH:-/dev/null}:/run/secrets/apple_key:ro
+    ports:
+      - "127.0.0.1:8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    stop_grace_period: 15s
+
   tasks:
     build:
       context: .
@@ -37,12 +71,16 @@ services:
       PORT: "8080"
       DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-localdev}@postgres:5432/tasks?sslmode=disable
       REDIS_ADDR: redis:6379
+      AUTH_INTROSPECT_URL: http://accounts:8080/internal/auth/introspect
+      AUTH_INTERNAL_SECRET: ${AUTH_INTERNAL_SECRET:-}
     ports:
       - "127.0.0.1:8081:8080"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      accounts:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/ready"]
@@ -60,12 +98,49 @@ services:
       PORT: "8080"
       DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-localdev}@postgres:5432/habits?sslmode=disable
       REDIS_ADDR: redis:6379
+      AUTH_INTROSPECT_URL: http://accounts:8080/internal/auth/introspect
+      AUTH_INTERNAL_SECRET: ${AUTH_INTERNAL_SECRET:-}
     ports:
       - "127.0.0.1:8082:8080"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      accounts:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    stop_grace_period: 15s
+
+  calendar:
+    build:
+      context: .
+      args:
+        SERVICE: calendar
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD:-localdev}@postgres:5432/calendar?sslmode=disable
+      REDIS_ADDR: redis:6379
+      TASKS_URL: http://tasks:8080
+      HABITS_URL: http://habits:8080
+      AUTH_INTROSPECT_URL: http://accounts:8080/internal/auth/introspect
+      AUTH_INTERNAL_SECRET: ${AUTH_INTERNAL_SECRET:-}
+    ports:
+      - "127.0.0.1:8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      accounts:
+        condition: service_healthy
+      tasks:
+        condition: service_healthy
+      habits:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health/ready"]

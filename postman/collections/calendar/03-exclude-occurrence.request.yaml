@@ -1,0 +1,13 @@
+$kind: http-request
+name: Exclude occurrence
+method: PUT
+url: '{{baseUrl}}/v1/calendar-events/{{eventId}}/excluded-dates/{{eventDate}}'
+order: 3000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('excluded', () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().excluded_dates).to.include(pm.collectionVariables.get('eventDate'));
+      });

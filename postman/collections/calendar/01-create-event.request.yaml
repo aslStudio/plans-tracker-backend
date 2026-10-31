@@ -1,0 +1,26 @@
+$kind: http-request
+name: Create event
+method: POST
+url: '{{baseUrl}}/v1/calendar-events'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Postman calendar plan",
+      "date": "{{eventDate}}",
+      "start_minute": 540,
+      "duration_minutes": 60,
+      "all_day": false,
+      "color": "#087F78",
+      "repeat_rule": {"type": "daily"}
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('created', () => pm.response.to.have.status(201));
+      if (pm.response.code === 201) pm.collectionVariables.set('eventId', pm.response.json().id);

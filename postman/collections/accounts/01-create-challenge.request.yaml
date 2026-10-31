@@ -1,0 +1,14 @@
+$kind: http-request
+name: Create Apple challenge
+method: POST
+url: '{{accountsUrl}}/v1/auth/challenges'
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('challenge created', () => {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json().nonce).to.be.a('string').and.not.empty;
+      });
+      if (pm.response.code === 201) pm.collectionVariables.set('nonce', pm.response.json().nonce);

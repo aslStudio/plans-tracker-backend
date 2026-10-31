@@ -1,0 +1,13 @@
+$kind: http-request
+name: Get settings
+method: GET
+url: '{{baseUrl}}/v1/calendar-settings'
+order: 5000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('default settings', () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().view_mode).to.be.oneOf(['day', '3day', 'week', 'month']);
+      });

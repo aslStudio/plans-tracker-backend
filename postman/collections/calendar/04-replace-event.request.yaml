@@ -1,0 +1,29 @@
+$kind: http-request
+name: Replace event
+method: PUT
+url: '{{baseUrl}}/v1/calendar-events/{{eventId}}'
+order: 4700
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Updated Postman plan",
+      "date": "{{eventDate}}",
+      "start_minute": 600,
+      "duration_minutes": 45,
+      "all_day": false,
+      "color": "#087F78",
+      "repeat_rule": {"type": "daily"}
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('replaced', () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().title).to.eql('Updated Postman plan');
+        pm.expect(pm.response.json().start_minute).to.eql(600);
+      });

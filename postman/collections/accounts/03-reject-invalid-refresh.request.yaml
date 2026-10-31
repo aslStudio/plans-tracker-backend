@@ -1,0 +1,17 @@
+$kind: http-request
+name: Reject invalid refresh token
+method: POST
+url: '{{accountsUrl}}/v1/auth/refresh'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {"refresh_token":"invalid"}
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('invalid refresh rejected', () => pm.response.to.have.status(401));

@@ -1,0 +1,10 @@
+$kind: collection
+name: Accounts auth API
+description: Local negative-path checks; a successful Apple login is covered by the fake-Apple integration test.
+variables:
+  - key: accountsUrl
+    value: 'http://127.0.0.1:8084'
+  - key: tasksUrl
+    value: 'http://127.0.0.1:8081'
+  - key: nonce
+    value: ''

@@ -1,0 +1,17 @@
+$kind: http-request
+name: Reject invalid Apple token
+method: POST
+url: '{{accountsUrl}}/v1/auth/apple'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {"identity_token":"invalid","authorization_code":"invalid","nonce":"{{nonce}}"}
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('invalid Apple token rejected', () => pm.response.to.have.status(401));

@@ -1,0 +1,21 @@
+$kind: http-request
+name: Restore settings
+method: PATCH
+url: '{{baseUrl}}/v1/calendar-settings'
+order: 5300
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {"show_tasks": true, "view_mode": "day"}
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('settings restored', () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().show_tasks).to.eql(true);
+        pm.expect(pm.response.json().view_mode).to.eql('day');
+      });

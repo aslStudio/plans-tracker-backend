@@ -6,6 +6,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  accounts:
+    environment:
+      DATABASE_URL: postgres://app@postgres:5432/accounts?sslmode=disable
+      TASKS_DATABASE_URL: postgres://app@postgres:5432/tasks?sslmode=disable
+      HABITS_DATABASE_URL: postgres://app@postgres:5432/habits?sslmode=disable
+      CALENDAR_DATABASE_URL: postgres://app@postgres:5432/calendar?sslmode=disable
+      DATABASE_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Set PROD_POSTGRES_PASSWORD for production}
+
   tasks:
     environment:
       DATABASE_URL: postgres://app@postgres:5432/tasks?sslmode=disable
@@ -14,6 +22,11 @@ services:
   habits:
     environment:
       DATABASE_URL: postgres://app@postgres:5432/habits?sslmode=disable
+      DATABASE_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Set PROD_POSTGRES_PASSWORD for production}
+
+  calendar:
+    environment:
+      DATABASE_URL: postgres://app@postgres:5432/calendar?sslmode=disable
       DATABASE_PASSWORD: ${PROD_POSTGRES_PASSWORD:?Set PROD_POSTGRES_PASSWORD for production}
 
 volumes:

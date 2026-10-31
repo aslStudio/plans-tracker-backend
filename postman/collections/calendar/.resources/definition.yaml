@@ -1,0 +1,10 @@
+$kind: collection
+name: Calendar API
+description: Local calendar service checks. Run requests in order after Docker Compose starts.
+variables:
+  - key: baseUrl
+    value: 'http://localhost:8083'
+  - key: eventId
+    value: ''
+  - key: eventDate
+    value: '2026-10-31'

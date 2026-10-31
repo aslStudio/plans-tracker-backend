@@ -37,7 +37,7 @@ func occurrenceToDTO(item tasks.TaskOccurrence) TaskOccurrenceDto {
 }
 
 func (h *Handler) listBacklog(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.Backlog(r.Context(), h.userID)
+	items, err := h.service.Backlog(r.Context(), h.userIDFor(r))
 	if err != nil {
 		http.Error(w, "Something went wrong while reading backlog", http.StatusInternalServerError)
 		return
@@ -55,7 +55,7 @@ func (h *Handler) listOccurrences(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	items, err := h.service.ListOccurrences(r.Context(), h.userID, start, end)
+	items, err := h.service.ListOccurrences(r.Context(), h.userIDFor(r), start, end)
 	if writeOccurrenceError(w, err) {
 		return
 	}
@@ -72,7 +72,7 @@ func (h *Handler) getOccurrence(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.Occurrence(r.Context(), h.userID, r.PathValue("id"), date)
+	item, err := h.service.Occurrence(r.Context(), h.userIDFor(r), r.PathValue("id"), date)
 	if writeOccurrenceError(w, err) {
 		return
 	}
@@ -92,7 +92,7 @@ func (h *Handler) setOccurrenceStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.SetOccurrenceStatus(r.Context(), h.userID, r.PathValue("id"), date, request.StatusID)
+	item, err := h.service.SetOccurrenceStatus(r.Context(), h.userIDFor(r), r.PathValue("id"), date, request.StatusID)
 	if writeOccurrenceError(w, err) {
 		return
 	}
@@ -116,7 +116,7 @@ func (h *Handler) setOccurrenceCompletion(w http.ResponseWriter, r *http.Request
 		http.Error(w, "completed is required", http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.SetOccurrenceCompletion(r.Context(), h.userID, r.PathValue("id"), date, *request.Completed)
+	item, err := h.service.SetOccurrenceCompletion(r.Context(), h.userIDFor(r), r.PathValue("id"), date, *request.Completed)
 	if writeOccurrenceError(w, err) {
 		return
 	}

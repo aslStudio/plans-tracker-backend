@@ -8,12 +8,20 @@ import (
 	"net/url"
 	"time"
 
+	"plans-tracker-backend/internal/auth"
 	"plans-tracker-backend/internal/tasks"
 )
 
 type Handler struct {
 	service *tasks.Service
 	userID  string
+}
+
+func (h *Handler) userIDFor(r *http.Request) string {
+	if id := auth.UserID(r.Context()); id != "" {
+		return id
+	}
+	return h.userID
 }
 
 func NewHandler(service *tasks.Service, userID string) *Handler {
@@ -56,7 +64,7 @@ func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.service.List(r.Context(), h.userID, startDate, endDate)
+	items, err := h.service.List(r.Context(), h.userIDFor(r), startDate, endDate)
 
 	if err != nil {
 		if errors.Is(err, tasks.ErrInvalidTask) {
@@ -77,7 +85,7 @@ func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getTask(w http.ResponseWriter, r *http.Request) {
-	item, err := h.service.ByID(r.Context(), h.userID, r.PathValue("id"))
+	item, err := h.service.ByID(r.Context(), h.userIDFor(r), r.PathValue("id"))
 	if errors.Is(err, tasks.ErrNotFound) {
 		http.Error(w, "task not found", http.StatusNotFound)
 		return
@@ -100,7 +108,7 @@ func (h *Handler) createTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.Create(r.Context(), h.userID, input)
+	item, err := h.service.Create(r.Context(), h.userIDFor(r), input)
 	if writeTaskError(w, err, "Something went wrong while creating task") {
 		return
 	}
@@ -119,7 +127,7 @@ func (h *Handler) patchTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	item, err := h.service.Patch(r.Context(), h.userID, r.PathValue("id"), patch)
+	item, err := h.service.Patch(r.Context(), h.userIDFor(r), r.PathValue("id"), patch)
 	if writeTaskError(w, err, "Something went wrong while updating task") {
 		return
 	}
@@ -127,7 +135,7 @@ func (h *Handler) patchTask(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteTask(w http.ResponseWriter, r *http.Request) {
-	err := h.service.Delete(r.Context(), h.userID, r.PathValue("id"))
+	err := h.service.Delete(r.Context(), h.userIDFor(r), r.PathValue("id"))
 	if writeTaskError(w, err, "Something went wrong while deleting task") {
 		return
 	}
@@ -151,7 +159,7 @@ func writeTaskError(w http.ResponseWriter, err error, internalMessage string) bo
 }
 
 func (h *Handler) listStatuses(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.StatusList(r.Context(), h.userID)
+	items, err := h.service.StatusList(r.Context(), h.userIDFor(r))
 	if err != nil {
 		http.Error(w, "Something went wrong while reading task statuses", http.StatusInternalServerError)
 		return
@@ -164,7 +172,7 @@ func (h *Handler) listStatuses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listGroups(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.GroupList(r.Context(), h.userID)
+	items, err := h.service.GroupList(r.Context(), h.userIDFor(r))
 	if err != nil {
 		http.Error(w, "Something went wrong while reading task groups", http.StatusInternalServerError)
 		return
@@ -177,7 +185,7 @@ func (h *Handler) listGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) listPriorities(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.PriorityList(r.Context(), h.userID)
+	items, err := h.service.PriorityList(r.Context(), h.userIDFor(r))
 	if err != nil {
 		http.Error(w, "Something went wrong while reading task priorities", http.StatusInternalServerError)
 		return

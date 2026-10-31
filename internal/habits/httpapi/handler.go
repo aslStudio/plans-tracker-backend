@@ -8,12 +8,20 @@ import (
 	"net/url"
 	"time"
 
+	"plans-tracker-backend/internal/auth"
 	"plans-tracker-backend/internal/habits"
 )
 
 type Handler struct {
 	service *habits.Service
 	userID  string
+}
+
+func (h *Handler) userIDFor(r *http.Request) string {
+	if id := auth.UserID(r.Context()); id != "" {
+		return id
+	}
+	return h.userID
 }
 
 func NewHandler(service *habits.Service, userID string) *Handler {
@@ -36,7 +44,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 }
 
 func (h *Handler) listHabits(w http.ResponseWriter, r *http.Request) {
-	listed, err := h.service.List(r.Context(), h.userID)
+	listed, err := h.service.List(r.Context(), h.userIDFor(r))
 	if writeServiceError(w, err) {
 		return
 	}
@@ -48,7 +56,7 @@ func (h *Handler) listHabits(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getHabit(w http.ResponseWriter, r *http.Request) {
-	item, err := h.service.ByID(r.Context(), h.userID, r.PathValue("id"))
+	item, err := h.service.ByID(r.Context(), h.userIDFor(r), r.PathValue("id"))
 	if writeServiceError(w, err) {
 		return
 	}
@@ -66,7 +74,7 @@ func (h *Handler) createHabit(w http.ResponseWriter, r *http.Request) {
 		badRequest(w)
 		return
 	}
-	item, err := h.service.Create(r.Context(), h.userID, input)
+	item, err := h.service.Create(r.Context(), h.userIDFor(r), input)
 	if writeServiceError(w, err) {
 		return
 	}
@@ -80,7 +88,7 @@ func (h *Handler) patchHabit(w http.ResponseWriter, r *http.Request) {
 		badRequest(w)
 		return
 	}
-	item, err := h.service.Patch(r.Context(), h.userID, r.PathValue("id"), request.toPatch())
+	item, err := h.service.Patch(r.Context(), h.userIDFor(r), r.PathValue("id"), request.toPatch())
 	if writeServiceError(w, err) {
 		return
 	}
@@ -88,14 +96,14 @@ func (h *Handler) patchHabit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteHabit(w http.ResponseWriter, r *http.Request) {
-	if writeServiceError(w, h.service.Delete(r.Context(), h.userID, r.PathValue("id"))) {
+	if writeServiceError(w, h.service.Delete(r.Context(), h.userIDFor(r), r.PathValue("id"))) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
-	listed, err := h.service.CategoryList(r.Context(), h.userID)
+	listed, err := h.service.CategoryList(r.Context(), h.userIDFor(r))
 	if writeServiceError(w, err) {
 		return
 	}
@@ -107,7 +115,7 @@ func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getCategory(w http.ResponseWriter, r *http.Request) {
-	item, err := h.service.CategoryByID(r.Context(), h.userID, r.PathValue("id"))
+	item, err := h.service.CategoryByID(r.Context(), h.userIDFor(r), r.PathValue("id"))
 	if writeServiceError(w, err) {
 		return
 	}
@@ -125,7 +133,7 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		badRequest(w)
 		return
 	}
-	item, err := h.service.CreateCategory(r.Context(), h.userID, input)
+	item, err := h.service.CreateCategory(r.Context(), h.userIDFor(r), input)
 	if writeServiceError(w, err) {
 		return
 	}
@@ -139,7 +147,7 @@ func (h *Handler) patchCategory(w http.ResponseWriter, r *http.Request) {
 		badRequest(w)
 		return
 	}
-	item, err := h.service.PatchCategory(r.Context(), h.userID, r.PathValue("id"), request.toPatch())
+	item, err := h.service.PatchCategory(r.Context(), h.userIDFor(r), r.PathValue("id"), request.toPatch())
 	if writeServiceError(w, err) {
 		return
 	}
@@ -147,7 +155,7 @@ func (h *Handler) patchCategory(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
-	if writeServiceError(w, h.service.DeleteCategory(r.Context(), h.userID, r.PathValue("id"))) {
+	if writeServiceError(w, h.service.DeleteCategory(r.Context(), h.userIDFor(r), r.PathValue("id"))) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -171,7 +179,7 @@ func (h *Handler) listCompletions(w http.ResponseWriter, r *http.Request) {
 		}
 		filter.EndDate = &date
 	}
-	listed, err := h.service.CompletionList(r.Context(), h.userID, filter)
+	listed, err := h.service.CompletionList(r.Context(), h.userIDFor(r), filter)
 	if writeServiceError(w, err) {
 		return
 	}
@@ -193,7 +201,7 @@ func (h *Handler) setCompletion(w http.ResponseWriter, r *http.Request) {
 		badRequest(w)
 		return
 	}
-	item, err := h.service.SetCompletion(r.Context(), h.userID, r.PathValue("id"), date, request.Completed.Value)
+	item, err := h.service.SetCompletion(r.Context(), h.userIDFor(r), r.PathValue("id"), date, request.Completed.Value)
 	if writeServiceError(w, err) {
 		return
 	}

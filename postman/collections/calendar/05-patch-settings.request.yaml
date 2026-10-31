@@ -1,0 +1,21 @@
+$kind: http-request
+name: Patch settings
+method: PATCH
+url: '{{baseUrl}}/v1/calendar-settings'
+order: 5200
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {"show_tasks": false, "view_mode": "week"}
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('settings patched', () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json().show_tasks).to.eql(false);
+        pm.expect(pm.response.json().view_mode).to.eql('week');
+      });

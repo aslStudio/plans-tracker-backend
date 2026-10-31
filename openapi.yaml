@@ -8,11 +8,157 @@ servers:
     description: Tasks service (local Docker Compose)
   - url: http://localhost:8082
     description: Habits service (local Docker Compose)
+  - url: http://localhost:8083
+    description: Calendar service (local Docker Compose)
+  - url: http://localhost:8084
+    description: Accounts service (local Docker Compose)
+security:
+  - BearerAuth: []
 paths:
+  /v1/auth/challenges:
+    servers: [{url: 'http://localhost:8084'}]
+    post:
+      security: []
+      operationId: createAppleChallenge
+      summary: Create a one-time nonce for native Sign in with Apple
+      responses:
+        '201': {description: Challenge, content: {application/json: {schema: {$ref: '#/components/schemas/AppleChallenge'}}}}
+  /v1/auth/apple:
+    servers: [{url: 'http://localhost:8084'}]
+    post:
+      security: []
+      operationId: signInWithApple
+      summary: Verify Apple credentials and open an application session
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AppleSignInInput'}}}}
+      responses:
+        '200': {description: Session and user, content: {application/json: {schema: {$ref: '#/components/schemas/AuthSession'}}}}
+        '400': {description: Invalid request}
+        '401': {description: Invalid or expired Apple credentials or challenge}
+        '503': {description: Apple authentication service unavailable}
+  /v1/auth/apple/notifications:
+    servers: [{url: 'http://localhost:8084'}]
+    post:
+      security: []
+      operationId: receiveAppleAccountNotification
+      summary: Receive a signed Apple account change notification
+      description: Configure this path as an HTTPS server-to-server notification URL in Apple Developer. The payload is a JWS signed by Apple.
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [payload], properties: {payload: {type: string}}}}}}
+      responses:
+        '204': {description: Notification processed or already processed}
+        '401': {description: Invalid Apple signature or claims}
+        '503': {description: Temporary processing failure; Apple can retry}
+  /v1/auth/refresh:
+    servers: [{url: 'http://localhost:8084'}]
+    post:
+      security: []
+      operationId: refreshSession
+      summary: Rotate application refresh and access tokens
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/RefreshInput'}}}}
+      responses:
+        '200': {description: New tokens, content: {application/json: {schema: {$ref: '#/components/schemas/AuthSession'}}}}
+        '401': {description: Invalid or expired refresh token}
+  /v1/auth/logout:
+    servers: [{url: 'http://localhost:8084'}]
+    post:
+      operationId: logout
+      summary: Revoke the current application session
+      responses:
+        '204': {description: Session revoked}
+        '401': {description: Invalid access token}
+  /v1/auth/me:
+    servers: [{url: 'http://localhost:8084'}]
+    get:
+      operationId: getCurrentUser
+      summary: Return the authenticated application user
+      responses:
+        '200': {description: User, content: {application/json: {schema: {$ref: '#/components/schemas/AuthUser'}}}}
+        '401': {description: Invalid access token}
+  /v1/auth/account:
+    servers: [{url: 'http://localhost:8084'}]
+    delete:
+      operationId: deleteCurrentAccount
+      summary: Delete the account and its data in every service, and revoke Apple access
+      responses:
+        '204': {description: Account deleted}
+        '401': {description: Invalid access token}
+        '503': {description: Deletion could not be completed; retry safely}
+  /v1/calendar-events:
+    servers: [{url: 'http://localhost:8083'}]
+    get:
+      summary: List events that occur in an inclusive date range
+      operationId: listCalendarEvents
+      parameters:
+        - {name: start_date, in: query, required: true, schema: {type: string, format: date}}
+        - {name: end_date, in: query, required: true, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Events ordered by event date and ID, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEventList'}}}}
+        '400': {description: Invalid range or more than 366 days}
+    post:
+      summary: Create a calendar event
+      operationId: createCalendarEvent
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEventInput'}}}}
+      responses:
+        '201': {description: Created event, headers: {Location: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEvent'}}}}
+        '400': {description: Invalid input or linked resource}
+        '503': {description: Linked service unavailable}
+  /v1/calendar-events/{id}:
+    servers: [{url: 'http://localhost:8083'}]
+    parameters: [{$ref: '#/components/parameters/ResourceID'}]
+    get:
+      summary: Get one calendar event
+      operationId: getCalendarEvent
+      responses:
+        '200': {description: Event, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEvent'}}}}
+        '404': {description: Event not found}
+    put:
+      summary: Replace a calendar event
+      operationId: replaceCalendarEvent
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEventInput'}}}}
+      responses:
+        '200': {description: Updated event, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEvent'}}}}
+        '400': {description: Invalid input or linked resource}
+        '404': {description: Event not found}
+        '503': {description: Linked service unavailable}
+    delete:
+      summary: Delete a calendar event
+      operationId: deleteCalendarEvent
+      responses:
+        '204': {description: Event deleted}
+        '404': {description: Event not found}
+  /v1/calendar-events/{id}/excluded-dates/{date}:
+    servers: [{url: 'http://localhost:8083'}]
+    parameters: [{$ref: '#/components/parameters/ResourceID'}, {$ref: '#/components/parameters/OccurrenceDate'}]
+    put:
+      summary: Exclude one scheduled occurrence
+      operationId: excludeCalendarOccurrence
+      responses:
+        '200': {description: Updated event, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEvent'}}}}
+        '400': {description: Date is not a scheduled occurrence}
+        '404': {description: Event not found}
+    delete:
+      summary: Restore one excluded occurrence
+      operationId: restoreCalendarOccurrence
+      responses:
+        '200': {description: Updated event, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarEvent'}}}}
+        '404': {description: Event not found}
+  /v1/calendar-settings:
+    servers: [{url: 'http://localhost:8083'}]
+    get:
+      summary: Get calendar display settings
+      operationId: getCalendarSettings
+      responses:
+        '200': {description: Settings, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarSettings'}}}}
+    patch:
+      summary: Change calendar display settings
+      operationId: patchCalendarSettings
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarSettingsPatch'}}}}
+      responses:
+        '200': {description: Settings, content: {application/json: {schema: {$ref: '#/components/schemas/CalendarSettings'}}}}
+        '400': {description: Invalid input}
   /v1/habits:
     get:
       summary: List habits for the configured development user
-      description: Authentication is not implemented yet. The habits service reads the user ID from DEV_USER_ID. Returns every habit owned by that user, newest first.
+      description: The service reads the user ID from the validated bearer token; local development may use DEV_USER_ID when AUTH_ALLOW_DEV_USER is enabled. Returns every habit owned by that user, newest first.
       operationId: listHabits
       servers:
         - url: http://localhost:8082
@@ -204,7 +350,7 @@ paths:
         description: Tasks service (local Docker Compose)
     get:
       summary: List tasks for the configured development user
-      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      description: The service reads the user ID from the validated bearer token; local development may use DEV_USER_ID when AUTH_ALLOW_DEV_USER is enabled.
       operationId: listTasks
       servers:
         - url: http://localhost:8081
@@ -273,7 +419,7 @@ paths:
               example: Something went wrong while reading tasks list
     post:
       summary: Create a task for the configured development user
-      description: The user ID comes from DEV_USER_ID. If only one date is provided, it is copied to the other date field.
+      description: The user ID comes from the validated bearer token. If only one date is provided, it is copied to the other date field.
       operationId: createTask
       servers:
         - url: http://localhost:8081
@@ -414,7 +560,7 @@ paths:
         description: Tasks service (local Docker Compose)
     get:
       summary: Get one task for the configured development user
-      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      description: The service reads the user ID from the validated bearer token; local development may use DEV_USER_ID when AUTH_ALLOW_DEV_USER is enabled.
       operationId: getTask
       servers:
         - url: http://localhost:8081
@@ -448,7 +594,7 @@ paths:
               example: Something went wrong while reading task
     patch:
       summary: Change selected fields of one task
-      description: The user ID comes from DEV_USER_ID. Omitted fields remain unchanged; nullable fields can be cleared with null. Send both start_date and end_date together to change or clear the date range.
+      description: The user ID comes from the validated bearer token. Omitted fields remain unchanged; nullable fields can be cleared with null. Send both start_date and end_date together to change or clear the date range.
       operationId: updateTask
       servers:
         - url: http://localhost:8081
@@ -491,7 +637,7 @@ paths:
                 type: string
     delete:
       summary: Delete one task
-      description: The user ID comes from DEV_USER_ID.
+      description: The user ID comes from the validated bearer token.
       operationId: deleteTask
       servers:
         - url: http://localhost:8081
@@ -522,7 +668,7 @@ paths:
         description: Tasks service (local Docker Compose)
     get:
       summary: List task statuses for the configured development user
-      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      description: The service reads the user ID from the validated bearer token; local development may use DEV_USER_ID when AUTH_ALLOW_DEV_USER is enabled.
       operationId: listTaskStatuses
       servers:
         - url: http://localhost:8081
@@ -628,7 +774,7 @@ paths:
         description: Tasks service (local Docker Compose)
     get:
       summary: List task groups for the configured development user
-      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      description: The service reads the user ID from the validated bearer token; local development may use DEV_USER_ID when AUTH_ALLOW_DEV_USER is enabled.
       operationId: listTaskGroups
       servers:
         - url: http://localhost:8081
@@ -729,7 +875,7 @@ paths:
         description: Tasks service (local Docker Compose)
     get:
       summary: List task priorities for the configured development user
-      description: Authentication is not implemented yet. The tasks service reads the user ID from DEV_USER_ID.
+      description: The service reads the user ID from the validated bearer token; local development may use DEV_USER_ID when AUTH_ALLOW_DEV_USER is enabled.
       operationId: listTaskPriorities
       servers:
         - url: http://localhost:8081
@@ -828,6 +974,7 @@ paths:
           description: Priority could not be deleted.
   /health/live:
     get:
+      security: []
       summary: Report that the HTTP process is running
       operationId: getLiveness
       responses:
@@ -839,6 +986,7 @@ paths:
                 $ref: '#/components/schemas/Health'
   /health/ready:
     get:
+      security: []
       summary: Check PostgreSQL and Redis connectivity
       operationId: getReadiness
       responses:
@@ -856,6 +1004,11 @@ paths:
                 type: string
               example: dependency unavailable
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Opaque application access token issued by the accounts service.
   parameters:
     TaskId:
       name: id
@@ -874,6 +1027,97 @@ components:
       schema:
         type: string
   schemas:
+    AppleChallenge:
+      type: object
+      required: [nonce, expires_at]
+      properties:
+        nonce: {type: string}
+        expires_at: {type: string, format: date-time}
+    AppleSignInInput:
+      type: object
+      required: [identity_token, authorization_code, nonce]
+      additionalProperties: false
+      properties:
+        identity_token: {type: string}
+        authorization_code: {type: string}
+        nonce: {type: string}
+        display_name: {type: string}
+    RefreshInput:
+      type: object
+      required: [refresh_token]
+      additionalProperties: false
+      properties:
+        refresh_token: {type: string}
+    AuthUser:
+      type: object
+      required: [id, email, display_name]
+      properties:
+        id: {type: string, format: uuid}
+        email: {type: [string, 'null'], format: email}
+        display_name: {type: [string, 'null']}
+    AuthSession:
+      type: object
+      required: [access_token, refresh_token, token_type, expires_in, user]
+      properties:
+        access_token: {type: string}
+        refresh_token: {type: string}
+        token_type: {type: string, const: Bearer}
+        expires_in: {type: integer, minimum: 1}
+        user: {$ref: '#/components/schemas/AuthUser'}
+    CalendarRepeatRule:
+      oneOf:
+        - {type: object, required: [type], properties: {type: {const: daily}}, additionalProperties: false}
+        - {type: object, required: [type, daysOfWeek], properties: {type: {const: weekly}, daysOfWeek: {type: array, minItems: 1, uniqueItems: true, items: {type: integer, minimum: 0, maximum: 6}}}, additionalProperties: false}
+        - {type: object, required: [type, dayOfMonth], properties: {type: {const: monthly}, dayOfMonth: {type: integer, minimum: 1, maximum: 31}}, additionalProperties: false}
+        - {type: object, required: [type, everyNDays], properties: {type: {const: custom}, everyNDays: {type: integer, minimum: 1}}, additionalProperties: false}
+    CalendarLink:
+      type: object
+      required: [type, id]
+      additionalProperties: false
+      properties:
+        type: {type: string, enum: [task, habit]}
+        id: {type: string, minLength: 1}
+    CalendarEventInput:
+      type: object
+      required: [title, date, start_minute, duration_minutes, all_day, color]
+      properties:
+        title: {type: string, minLength: 1}
+        date: {type: string, format: date}
+        start_minute: {type: integer, minimum: 0, maximum: 1439}
+        duration_minutes: {type: integer, minimum: 1, maximum: 1440}
+        all_day: {type: boolean}
+        color: {type: string, minLength: 1}
+        description: {type: [string, 'null']}
+        notes: {type: string, default: ''}
+        location: {type: string, default: ''}
+        repeat_rule: {oneOf: [{$ref: '#/components/schemas/CalendarRepeatRule'}, {type: 'null'}]}
+        repeat_until: {type: [string, 'null'], format: date}
+        excluded_dates: {type: array, uniqueItems: true, items: {type: string, format: date}, default: []}
+        link: {oneOf: [{$ref: '#/components/schemas/CalendarLink'}, {type: 'null'}]}
+    CalendarEvent:
+      allOf:
+        - {$ref: '#/components/schemas/CalendarEventInput'}
+        - {type: object, required: [id, notes, location, repeat_rule, repeat_until, excluded_dates, link, created_at, updated_at], properties: {id: {type: string}, created_at: {type: string, format: date-time}, updated_at: {type: string, format: date-time}}}
+    CalendarEventList:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/CalendarEvent'}}
+    CalendarSettings:
+      type: object
+      required: [show_tasks, show_habits, view_mode]
+      properties:
+        show_tasks: {type: boolean}
+        show_habits: {type: boolean}
+        view_mode: {type: string, enum: [day, 3day, week, month]}
+    CalendarSettingsPatch:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        show_tasks: {type: boolean}
+        show_habits: {type: boolean}
+        view_mode: {type: string, enum: [day, 3day, week, month]}
     HabitListResponse:
       type: object
       required: [items]

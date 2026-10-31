@@ -6,7 +6,14 @@ services:
   tasks:
     environment:
       DEV_USER_ID: 8dc53fe1-0f08-4bd0-a3ed-6a5541859490
+      AUTH_ALLOW_DEV_USER: "true"
 
   habits:
     environment:
       DEV_USER_ID: 8dc53fe1-0f08-4bd0-a3ed-6a5541859490
+      AUTH_ALLOW_DEV_USER: "true"
+
+  calendar:
+    environment:
+      DEV_USER_ID: 8dc53fe1-0f08-4bd0-a3ed-6a5541859490
+      AUTH_ALLOW_DEV_USER: "true"

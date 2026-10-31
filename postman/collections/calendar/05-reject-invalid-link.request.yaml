@@ -1,0 +1,25 @@
+$kind: http-request
+name: Reject missing linked task
+method: POST
+url: '{{baseUrl}}/v1/calendar-events'
+order: 5500
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "title": "Invalid linked plan",
+      "date": "{{eventDate}}",
+      "start_minute": 540,
+      "duration_minutes": 60,
+      "all_day": false,
+      "color": "#087F78",
+      "link": {"type": "task", "id": "missing-task-id"}
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('missing linked task rejected', () => pm.response.to.have.status(400));
